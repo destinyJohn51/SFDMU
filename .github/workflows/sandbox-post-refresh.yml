@@ -1,0 +1,62 @@
+name: Sandbox Post Refresh Seed
+
+on:
+  workflow_dispatch:
+    inputs:
+      sandbox_username:
+        description: "Username de la sandbox cible"
+        required: true
+      source_username:
+        description: "Username de l'org source"
+        required: true
+
+jobs:
+  seed-sandbox:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Salesforce CLI
+        run: npm install -g @salesforce/cli
+
+      - name: Install SFDMU plugin
+        run: sf plugins install sfdmu
+
+      - name: Restore JWT key
+        shell: bash
+        run: |
+          echo "${{ secrets.SF_JWT_KEY }}" > server.key
+          chmod 600 server.key
+
+      - name: Auth source org
+        run: |
+          sf org login jwt \
+            --client-id "${{ secrets.SF_CLIENT_ID }}" \
+            --jwt-key-file server.key \
+            --username "${{ github.event.inputs.source_username }}" \
+            --instance-url "${{ secrets.SF_LOGIN_URL }}" \
+            --alias sourceOrg
+
+      - name: Auth target sandbox
+        run: |
+          sf org login jwt \
+            --client-id "${{ secrets.SF_CLIENT_ID }}" \
+            --jwt-key-file server.key \
+            --username "${{ github.event.inputs.sandbox_username }}" \
+            --instance-url "${{ secrets.SF_SANDBOX_LOGIN_URL }}" \
+            --alias targetSandbox
+
+      - name: Run SFDMU
+        working-directory: ./sfdmu/sandbox-seed
+        run: |
+          sf sfdmu run \
+            --sourceusername sourceOrg \
+            --targetusername targetSandbox \
+            --file export.json
