@@ -16,16 +16,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - name: Install Salesforce CLI (binary)
+        run: |
+          wget https://developer.salesforce.com/media/salesforce-cli/sf/channels/stable/sf-linux-x64.tar.xz
+          mkdir -p ~/sf
+          tar -xJf sf-linux-x64.tar.xz -C ~/sf --strip-components 1
+          echo "$HOME/sf/bin" >> $GITHUB_PATH
 
-      - name: Install Salesforce CLI
-        run: npm install -g @salesforce/cli
+      - name: Check CLI
+        run: sf version
 
       - name: Restore JWT key
-        shell: bash
         run: |
           echo "${{ secrets.SF_JWT_KEY }}" > server.key
           chmod 600 server.key
