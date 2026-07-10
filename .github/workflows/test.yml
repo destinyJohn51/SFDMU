@@ -1,1 +1,46 @@
+name: Test Sandbox Login
 
+on:
+  workflow_dispatch:
+    inputs:
+      sandbox_username:
+        description: "Username de la sandbox cible"
+        required: true
+        type: string
+
+jobs:
+  login-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Salesforce CLI
+        run: npm install -g @salesforce/cli
+
+      - name: Restore JWT key
+        shell: bash
+        run: |
+          echo "${{ secrets.SF_JWT_KEY }}" > server.key
+          chmod 600 server.key
+
+      - name: Authenticate to target sandbox
+        run: |
+          sf org login jwt \
+            --client-id "${{ secrets.SF_CLIENT_ID }}" \
+            --jwt-key-file server.key \
+            --username "${{ inputs.sandbox_username }}" \
+            --instance-url "${{ secrets.SF_SANDBOX_LOGIN_URL }}" \
+            --alias targetSandbox
+
+      - name: Show success message
+        run: echo "Connexion à la sandbox réussie"
+
+      - name: Display org info
+        run: sf org display --target-org targetSandbox
